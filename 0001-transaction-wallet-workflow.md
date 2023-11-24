@@ -1,8 +1,7 @@
-![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/00cc5c56-5b8a-45d6-8bf7-5199c246e452)
+![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/b7c663e0-a89e-4e9c-97b3-80e9eda69d3e)
 
 ```dot
 digraph tx_flow {
-fontname = "Helvetica,Arial,sans-serif"
     graph [
         label = "Sovereign SDK Wallet Snap Transaction Workflow"
         labelloc = t
@@ -112,7 +111,7 @@ fontname = "Helvetica,Arial,sans-serif"
     apply_blob -> module_apply_blob_hooks [label="{begin, end}_blob_hook"]
     apply_blob -> module_tx_hooks [label="{pre, post}_dispatch_tx_hook"]
     apply_blob -> rollup_tx_receipt [label="{events, receipt}"]
-    apply_blob -> module_runtime [label="dispatch_call"]
+    module_runtime -> apply_blob [label="dispatch_call"]
 
     rollup_tx_receipt -> db_slot_commit
     db_slot_commit -> db_ledger
