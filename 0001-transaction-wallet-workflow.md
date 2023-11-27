@@ -1,4 +1,4 @@
-![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/a313eb37-7f83-4966-8852-3e9d04b0024e)
+![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/413b5e80-9dfd-4771-bcda-b5b4e735f4e9)
 
 ```dot
 digraph tx_flow {
@@ -6,7 +6,6 @@ digraph tx_flow {
         label = "Sovereign SDK Wallet Snap Transaction Workflow"
         labelloc = t
         fontname = "Helvetica,Arial,sans-serif"
-        fontsize = 20
         layout = dot
         rankdir = LR
         newrank = true
@@ -19,8 +18,14 @@ digraph tx_flow {
     edge [
         arrowsize=0.5
         fontname="Helvetica,Arial,sans-serif"
-        penwidth=2
     ]
+
+    subgraph cluster_setup {
+        sov_snap_generator [label="sov-snap-generator"]
+        wallet_signer [label="Signer"]
+
+        label = "Setup"
+    }
 
     subgraph cluster_start {
         style=filled;
@@ -29,19 +34,6 @@ digraph tx_flow {
         ux [label="UX"]
 
         label = "Entrypoint"
-    }
-
-    subgraph cluster_module {
-        module_runtime [label="Module RuntimeCall"]
-
-        label = "Module implementation"
-    }
-
-    subgraph cluster_wallet {
-        sov_snap_generator [label="sov-snap-generator"]
-        wallet_signer [label="Signer"]
-
-        label = "Wallet implementation"
     }
 
     subgraph cluster_sov_sequencer {
@@ -70,7 +62,6 @@ digraph tx_flow {
 
     subgraph cluster_sov_db {
         db_slot_commit [label="SlotCommit"]
-        db_ledger [label="LedgerDB"]
 
         label = "sov-db"
     }
@@ -88,31 +79,32 @@ digraph tx_flow {
 
         da_service [label="DA layer implementation"]
         storage [label="Storage"]
+        module_runtime [label="RuntimeCall"]
+        module_hooks [label="Hooks"]
 
         label = "Endpoint"
     }
 
-    module_runtime -> ux
     ux -> wallet_signer [label="JSON(RuntimeCall)"]
     wallet_signer -> ux [label="borsh(tx)"]
-    ux -> sequencer_batch_builder [label="sequencer_acceptTx(tx)"]
-    ux -> sequencer_client [label="sequencer_publishBatch"]
-    module_runtime -> sov_snap_generator
+    ux -> sequencer_batch_builder [label="RPC(sequencer_acceptTx(borsh(tx)))"]
+    ux -> sequencer_client [label="RPC(sequencer_publishBatch)"]
     sov_snap_generator -> wallet_signer
     sequencer_client -> rollup_da_service [label="send_transaction"]
-    rollup_da_service -> runner [label="Block"]
+    rollup_da_service -> runner
 
     runner -> rollup_state_transition_function [label="apply_slot/apply_blob"]
 
-    rollup_state_transition_function -> module_apply_blob_hooks
-    rollup_state_transition_function -> module_tx_hooks
+    rollup_state_transition_function -> module_apply_blob_hooks [dir="both"]
+    rollup_state_transition_function -> module_tx_hooks [dir="both"]
     rollup_state_transition_function -> runner_finalized_block [label="[TransactionReceipt{events, receipt}]"]
-    rollup_state_transition_function -> module_runtime [label="dispatch_call"]
+    rollup_state_transition_function -> module_runtime [label="dispatch_call", dir="both"]
 
+    module_apply_blob_hooks -> module_hooks [dir="both"]
+    module_tx_hooks -> module_hooks [dir="both"]
     runner_finalized_block -> runner_prover
     runner_finalized_block -> db_slot_commit
-    db_slot_commit -> db_ledger
-    db_ledger -> storage
+    db_slot_commit -> storage
     runner_prover -> da_service
 }
 ```
