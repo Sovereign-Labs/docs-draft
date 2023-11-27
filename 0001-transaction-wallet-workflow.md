@@ -1,4 +1,4 @@
-![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/413b5e80-9dfd-4771-bcda-b5b4e735f4e9)
+![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/a42c9604-449c-47ac-9266-c7739c7705d1)
 
 ```dot
 digraph tx_flow {
@@ -47,7 +47,10 @@ digraph tx_flow {
 
     subgraph cluster_sov_rollup_interface {
         rollup_state_transition_function [label="StateTransitionFunction"]
+        rollup_apply_slot [label="apply_slot"]
         rollup_da_service [label="DAService"]
+        rollup_receipts [label="[TransactionReceipt]"]
+        rollup_block [label="Block"]
 
         label = "sov-rollup-interface"
     }
@@ -69,6 +72,7 @@ digraph tx_flow {
     subgraph cluster_sov_modules_api {
         module_apply_blob_hooks [label="ApplyBlobHooks"]
         module_tx_hooks [label="TxBlobHooks"]
+        module_dispatch_call [label="DispatchCall"]
 
         label = "sov-modules-api"
     }
@@ -93,18 +97,22 @@ digraph tx_flow {
     sequencer_client -> rollup_da_service [label="send_transaction"]
     rollup_da_service -> runner
 
-    runner -> rollup_state_transition_function [label="apply_slot/apply_blob"]
+    runner -> rollup_state_transition_function
+    rollup_state_transition_function -> rollup_apply_slot
 
-    rollup_state_transition_function -> module_apply_blob_hooks [dir="both"]
-    rollup_state_transition_function -> module_tx_hooks [dir="both"]
-    rollup_state_transition_function -> runner_finalized_block [label="[TransactionReceipt{events, receipt}]"]
-    rollup_state_transition_function -> module_runtime [label="dispatch_call", dir="both"]
+    rollup_apply_slot -> module_apply_blob_hooks [dir="both"]
+    rollup_apply_slot -> module_tx_hooks [dir="both"]
+    rollup_apply_slot -> rollup_receipts
+    rollup_apply_slot -> module_dispatch_call [dir="both"]
+    module_dispatch_call -> module_runtime [dir="both"]
 
     module_apply_blob_hooks -> module_hooks [dir="both"]
     module_tx_hooks -> module_hooks [dir="both"]
-    runner_finalized_block -> runner_prover
-    runner_finalized_block -> db_slot_commit
+    rollup_receipts -> rollup_block
+    rollup_block -> runner_prover
+    rollup_block -> db_slot_commit
+    runner_prover -> runner_finalized_block
     db_slot_commit -> storage
-    runner_prover -> da_service
+    runner_finalized_block -> da_service
 }
 ```
