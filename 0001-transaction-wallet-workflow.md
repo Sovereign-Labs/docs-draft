@@ -1,4 +1,4 @@
-![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/a42c9604-449c-47ac-9266-c7739c7705d1)
+![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/551080f9-a7d1-4979-8b3f-2430d28ad30b)
 
 ```dot
 digraph tx_flow {
@@ -49,8 +49,7 @@ digraph tx_flow {
         rollup_state_transition_function [label="StateTransitionFunction"]
         rollup_apply_slot [label="apply_slot"]
         rollup_da_service [label="DAService"]
-        rollup_receipts [label="[TransactionReceipt]"]
-        rollup_block [label="Block"]
+        rollup_block [label="Block([TransactionReceipt])"]
 
         label = "sov-rollup-interface"
     }
@@ -58,7 +57,7 @@ digraph tx_flow {
     subgraph cluster_sov_stf_runner {
         runner [label="Runner"]
         runner_prover [label="ProverService"]
-        runner_finalized_block [label="Finalized Block"]
+        runner_proof [label="ZK Proof"]
 
         label = "sov-stf-runner"
     }
@@ -81,7 +80,7 @@ digraph tx_flow {
         style=filled;
         color=lightgreen;
 
-        da_service [label="DA layer implementation"]
+        relayer [label="Relayer"]
         storage [label="Storage"]
         module_runtime [label="RuntimeCall"]
         module_hooks [label="Hooks"]
@@ -93,6 +92,10 @@ digraph tx_flow {
     wallet_signer -> ux [label="borsh(tx)"]
     ux -> sequencer_batch_builder [label="RPC(sequencer_acceptTx(borsh(tx)))"]
     ux -> sequencer_client [label="RPC(sequencer_publishBatch)"]
+
+    sequencer_client -> ux [label="soft confirmation"]
+    module_hooks -> ux [label="transaction notification?"]
+
     sov_snap_generator -> wallet_signer
     sequencer_client -> rollup_da_service [label="send_transaction"]
     rollup_da_service -> runner
@@ -102,17 +105,17 @@ digraph tx_flow {
 
     rollup_apply_slot -> module_apply_blob_hooks [dir="both"]
     rollup_apply_slot -> module_tx_hooks [dir="both"]
-    rollup_apply_slot -> rollup_receipts
+    rollup_apply_slot -> rollup_block
     rollup_apply_slot -> module_dispatch_call [dir="both"]
     module_dispatch_call -> module_runtime [dir="both"]
 
     module_apply_blob_hooks -> module_hooks [dir="both"]
     module_tx_hooks -> module_hooks [dir="both"]
-    rollup_receipts -> rollup_block
     rollup_block -> runner_prover
     rollup_block -> db_slot_commit
-    runner_prover -> runner_finalized_block
+    runner_prover -> runner_proof
     db_slot_commit -> storage
-    runner_finalized_block -> da_service
+    rollup_block -> relayer
+    runner_proof -> relayer
 }
 ```
