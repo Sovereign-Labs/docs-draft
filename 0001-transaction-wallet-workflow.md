@@ -1,4 +1,4 @@
-![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/b7c663e0-a89e-4e9c-97b3-80e9eda69d3e)
+![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/a14aa7f2-2d87-4bd3-b2fa-e94e15ebc1bd)
 
 ```dot
 digraph tx_flow {
@@ -26,23 +26,24 @@ digraph tx_flow {
         style=filled;
         color=lightblue;
 
-        ux_tx [label="UX"]
-        ux_submit [label="UX"]
+        ux [label="UX"]
         module_runtime [label="Module RuntimeCall"]
 
-        label = "Starting point"
+        label = "Entrypoint"
     }
 
     subgraph cluster_wallet {
         sov_snap_generator [label="sov-snap-generator"]
-        wallet_wasm [label="WASM"]
         wallet_signer [label="Signer"]
 
         label = "Wallet implementation"
     }
 
     subgraph cluster_sov_sequencer {
-        sequencer_rpc [label="Rpc"]
+        sequencer_batch_builder [label="BatchBuilder"]
+        sequencer_client [label="Client"]
+
+        sequencer_batch_builder -> sequencer_client [label="dry_run"]
 
         label = "sov-sequencer"
     }
@@ -50,9 +51,16 @@ digraph tx_flow {
     subgraph cluster_sov_rollup_interface {
         rollup_state_transition_function [label="StateTransitionFunction"]
         rollup_da_service [label="DAService"]
-        rollup_tx_receipt [label="TransactionReceipt"]
 
         label = "sov-rollup-interface"
+    }
+
+    subgraph cluster_sov_stf_runner {
+        runner [label="Runner"]
+        runner_prover [label="ProverService"]
+        runner_finalized_block [label="Finalized Block"]
+
+        label = "sov-stf-runner"
     }
 
     subgraph cluster_sov_db {
@@ -69,19 +77,6 @@ digraph tx_flow {
         label = "sov-modules-api"
     }
 
-    subgraph cluster_stf_blueprint {
-        apply_slot [label="apply_slot"]
-        apply_blob [label="apply_blob"]
-
-        label = "sov-modules-stf-blueprint"
-    }
-
-    subgraph cluster_rollup_blueprint {
-        rollup [label="Rollup"]
-
-        label = "sov-modules-rollup-blueprint"
-    }
-
     subgraph cluster_end {
         style=filled;
         color=lightgreen;
@@ -89,32 +84,30 @@ digraph tx_flow {
         da_service [label="DA layer implementation"]
         storage [label="Storage"]
 
-        label = "Ending point"
+        label = "Endpoint"
     }
 
-    module_runtime -> ux_tx
-    ux_tx -> wallet_signer [label="JSON(RuntimeCall)"]
-    wallet_signer -> ux_tx [label="borsh(tx)"]
-    ux_tx -> sequencer_rpc [label="sequencer_accepttx(tx)"]
-    ux_submit -> sequencer_rpc [label="sequencer_publishBatch"]
+    module_runtime -> ux
+    ux -> wallet_signer [label="JSON(RuntimeCall)"]
+    wallet_signer -> ux [label="borsh(tx)"]
+    ux -> sequencer_batch_builder [label="sequencer_acceptTx(tx)"]
+    ux -> sequencer_client [label="sequencer_publishBatch"]
     module_runtime -> sov_snap_generator
-    sov_snap_generator -> wallet_wasm
-    wallet_wasm -> wallet_signer
-    sequencer_rpc -> rollup_da_service [label="send_transaction"]
-    rollup_da_service -> rollup [label="Block"]
-    rollup_da_service -> da_service
+    sov_snap_generator -> wallet_signer
+    sequencer_client -> rollup_da_service [label="send_transaction"]
+    rollup_da_service -> runner [label="Block"]
 
-    rollup -> apply_slot
-    apply_slot -> apply_blob
+    runner -> rollup_state_transition_function [label="apply_slot/apply_blob"]
 
-    rollup_state_transition_function -> apply_blob
-    apply_blob -> module_apply_blob_hooks [label="{begin, end}_blob_hook"]
-    apply_blob -> module_tx_hooks [label="{pre, post}_dispatch_tx_hook"]
-    apply_blob -> rollup_tx_receipt [label="{events, receipt}"]
-    module_runtime -> apply_blob [label="dispatch_call"]
+    rollup_state_transition_function -> module_apply_blob_hooks
+    rollup_state_transition_function -> module_tx_hooks
+    rollup_state_transition_function -> runner_finalized_block [label="[TransactionReceipt{events, receipt}]"]
+    rollup_state_transition_function -> module_runtime [label="dispatch_call"]
 
-    rollup_tx_receipt -> db_slot_commit
+    runner_finalized_block -> runner_prover
+    runner_finalized_block -> db_slot_commit
     db_slot_commit -> db_ledger
     db_ledger -> storage
+    runner_prover -> da_service
 }
 ```
