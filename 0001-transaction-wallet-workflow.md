@@ -1,4 +1,4 @@
-![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/a14aa7f2-2d87-4bd3-b2fa-e94e15ebc1bd)
+![tx](https://github.com/Sovereign-Labs/docs-draft/assets/8730839/a313eb37-7f83-4966-8852-3e9d04b0024e)
 
 ```dot
 digraph tx_flow {
@@ -27,9 +27,14 @@ digraph tx_flow {
         color=lightblue;
 
         ux [label="UX"]
-        module_runtime [label="Module RuntimeCall"]
 
         label = "Entrypoint"
+    }
+
+    subgraph cluster_module {
+        module_runtime [label="Module RuntimeCall"]
+
+        label = "Module implementation"
     }
 
     subgraph cluster_wallet {
